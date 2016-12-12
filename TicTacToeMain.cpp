@@ -27,7 +27,7 @@ void PlayerInput();
 bool MarkSquare(bool unmark);
 bool MoveCursor(int incrementX, int incrementY);
 int WrapValue(int min, int max, int value);
-int CheckPos(int x, int y);
+int CheckPos(int xPos, int yPos);
 void FindValidCell();
 
 int main()
@@ -71,48 +71,82 @@ int main()
 	return 0;
 }
 
-void checkwin()
+void checkwin() //Long method consisting of mainly repeated code, must be a better way.
 {
 	//look along lines from current position
 	int x = cursorPosX;
 	int y = cursorPosY;
-	int c = playerTurn ? 1 : 2;
+	int c = playerTurn ? 1 : 2; //which mark to look for
 
 	for (int xAxis = 0; xAxis <= 2; xAxis++) //look along x axis
 	{
 		x = WrapValue(0, sizeof(squares[0]), x + 1);
-		if (CheckPos(x, y) != c)
+		if (CheckPos(x, y) != c) //if we don't find the same mark, must not be a horizontal line, otherwise, break out.
 		{
 			x = cursorPosX; //reset x
-			for (int yAxis = 0; yAxis <= 2; yAxis++) //look along y axis
-			{
-				y = WrapValue(0, sizeof(squares[0]), y + 1);
-				if (CheckPos(x, y) != c)
-				{
-					y = cursorPosY;
-					//look for diagonal
-					for (int i = 0; i <= 2; i++ )
-					{
-						x = WrapValue(0, sizeof(squares[0]), x + 1);
-						y = WrapValue(0, sizeof(squares[0]), y+1);
-						if (CheckPos(x, y) != c)
-						{
-							//failed everything, return
-							winConditions = -1;
-							return;
-						}
-					}
-					break;
-				}
-			}
 			break;
+		}
+		else if (xAxis == 2)
+		{
+			winConditions = playerTurn ? 0 : 1;
+			return;
 		}
 	}
 
-	//if we make it out of the loops, we have a winner.
-	winConditions = playerTurn ? 0 : 1;
+	for (int yAxis = 0; yAxis <= 2; yAxis++) //look along y axis
+	{
+		y = WrapValue(0, sizeof(squares[0]), y + 1);
+		if (CheckPos(x, y) != c)
+		{
+			y = cursorPosY;
+			break;
+		}
+		else if (yAxis == 2)
+		{
+			winConditions = playerTurn ? 0 : 1;
+			return;
+		}
+	}
 
+	//set xy to center, as diagonal win must use it.
+	x = 1;
+	y = 1;
 
+	for (int xyAxisPos = 0; xyAxisPos <= 2; xyAxisPos++) //Right hand diagonal
+	{
+		x = WrapValue(0, sizeof(squares[0]), x + 1);
+		y = WrapValue(0, sizeof(squares[0]), y + 1);
+		if (CheckPos(x, y) != c)
+		{
+			x = 1; //reset x
+			y = 1; //reset y
+			break;
+		}
+		else if (xyAxisPos == 2)
+		{
+			winConditions = playerTurn ? 0 : 1;
+			return;
+		}
+	}
+
+	for (int xyAxisNeg = 0; xyAxisNeg <= 2; xyAxisNeg++) //Left hand diagonal
+	{
+		x = WrapValue(0, sizeof(squares[0]), x - 1);
+		y = WrapValue(0, sizeof(squares[0]), y + 1);
+		if (CheckPos(x, y) != c)
+		{
+			x = 1; //reset x
+			y = 1; //reset y
+			break;
+		}
+		else if (xyAxisNeg == 2)
+		{
+			winConditions = playerTurn ? 0 : 1;
+			return;
+		}
+	}
+
+	
 }
 
 void PlayerInput()
@@ -179,25 +213,25 @@ void PlayerInput()
 
 bool MoveCursor(int incrementX, int incrementY)
 {
-	int x = cursorPosX;
-	int y = cursorPosY;
+	int tempX = cursorPosX;
+	int tempY = cursorPosY;
 
 	for (int i = 0; i < 2; i++)
 	{
 		if (incrementX != 0)
 		{
-			x = WrapValue(0, sizeof(squares[0]), x + incrementX);
+			tempX = WrapValue(0, sizeof(squares[0]), tempX + incrementX);
 		}
 
 		if (incrementY != 0)
 		{
-			y = WrapValue(0, sizeof(squares[0]), y + incrementY);
+			tempY = WrapValue(0, sizeof(squares[0]), tempY + incrementY);
 		}
 
-		if (CheckPos(x, y) == 0) //test new pos
+		if (CheckPos(tempX, tempY) == 0) //test new pos
 		{
-			cursorPosX = x;
-			cursorPosY = y;
+			cursorPosX = tempX;
+			cursorPosY = tempY;
 			return true;
 		}
 	}
@@ -205,9 +239,9 @@ bool MoveCursor(int incrementX, int incrementY)
 	return false;
 }
 
-int CheckPos(int x, int y)
+int CheckPos(int xPos, int yPos)
 {
-	char cell = squares[x][y];
+	char cell = squares[xPos][yPos];
 	if (cell == ' ')
 	{
 		return 0;
@@ -226,11 +260,12 @@ void FindValidCell() //find closest free cell.
 {
 	if (!MoveCursor(1, 0)) // try horizontal first.
 	{
-		for (int x = 0; x < 2; x++)//check all columns.
+		for (int h = 0; h < 3; h++)//check all columns.
 		{
 			if (MoveCursor(0, 1)) //try the vertical cells.
 			{
 				MarkSquare(false);
+				return;
 			}
 		}
 		//no valid cells, its a draw.
@@ -262,13 +297,15 @@ bool MarkSquare(bool unmark) //set a mark on the current square, return true if 
 
 int WrapValue(int min, int max, int value)
 {
-	if (value >= max)
+	auto range = max - min;
+
+	while (value >= max)
 	{
-		value -= max;
+		value -= range;
 	}
-	else if (value < min)
+	while (value < min)
 	{
-		value += max;
+		value += range;
 	}
 
 	return value;
